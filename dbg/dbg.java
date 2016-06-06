@@ -20,45 +20,55 @@ import javax.jms.StreamMessage;
 import java.io.File;
 
 public class dbg{
-	
-	public static void main(String[] args){
-		//открывашки
-		String dest;
+
+	public static Document readXML(String iFile){
+		DocumentBuilderFactory factory;
+		DocumentBuilder builder;
+		Document document;
+		try{
+			factory=DocumentBuilderFactory.newInstance();
+			builder=factory.newDocumentBuilder();
+			document=builder.parse(new File(iFile));
+		}catch(Exception e){
+			System.out.println("Reading XML failed.(O_o )");
+			e.printStackTrace();
+		}finally{
+			if(factory)factory.close();
+			if(builder)builder.close();
+		}
+		return document;
+	}
+
+	public static void writeXML(Document document,String oFile){
 		TransformerFactory tFactory;
 		Transformer transformer;
 		DOMSource source;
 		StreamResult result;
-		DocumentBuilderFactory factory;
-		DocumentBuilder builder;
+		try{
+			tFactory=TransformerFactory.newInstance();
+			transformer=tFactory.newTransformer();
+			source=new DOMSource(document);
+			result=new StreamResult(new File(oFile));
+			transformer.transform(source, result);
+		}catch(Exception e){
+			System.out.println("Writing XML failed.(O_o )");
+			e.printStackTrace();
+		}finally{
+			if(tFactory)tFactory.close();
+			if(transformer)transformer.close();
+			if(source)source.close();
+			if(result)result.close();
+			if(document)document.close();
+		}
+		return;
+	}
+
+	public static Document fillXML(Document document){
+		//todo: fill from serialized object
 		Document document;
 		Node node;
 		Element element;
-		ConnectionFactory cFactory;
-		Connection connection;
-		Session session;
-		Destination destination;
-		MessageProducer mProducer;
-		MessageConsumer mConsumer;
-		StreamMessage sMessage;
-		
 		try{
-			//адрес сервера тут должен быть
-			dest = "nowhere";
-			//инициализация
-			cFactory = new com.sun.messaging.ConnectionFactory();
-			connection = cFactory.createConnection();
-			session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-			sMessage = session.createStreamMessage();
-			destination = session.createTopic(dest);
-			mProducer = session.createProducer(destination);
-			factory=DocumentBuilderFactory.newInstance();
-			builder=factory.newDocumentBuilder();
-			tFactory=TransformerFactory.newInstance();
-			transformer=tFactory.newTransformer();
-			//берём шаблон
-			document=builder.parse(new File("data/dbg.xml"));
-			//заполняем
-			//todo сделать заполнение из структуры
 			node=document.getElementsByTagName("Title").item(0);
 			node.setTextContent("Hi there!");
 			element=(Element)document.getElementsByTagName("Body").item(0);
@@ -73,28 +83,93 @@ public class dbg{
 			element=(Element)node;
 			element.setAttribute("on","true");
 			node.setTextContent("Cya, pals!");
-			//соединяемся
+		}catch(Exception e){
+			System.out.println("Filling XML failed.(O_o )");
+			e.printStackTrace();
+		}finally{
+			if(node)node.close();
+			if(element)element.close();
+		}
+		return document;
+	}
+
+	public static void sendXML(Document document,String sAddr){
+		ConnectionFactory cFactory;
+		Connection connection;
+		Session session;
+		Destination destination;
+		MessageProducer mProducer;
+		StreamMessage sMessage;
+		try{
+			cFactory=ConnectionFactory.newInstance();
+			connection=cFactory.createConnection();
+			session=connection.createSession(false,Session.AUTO_ACKNOWLEDGE);
+			sMessage=session.createStreamMessage();
+			destination=session.createTopic(sAddr);
+			mProducer=session.createProducer(destination);
 			connection.start();
-			//пихаем х№емэль
 			sMessage.writeObject(document);
 			mProducer.send(sMessage);
-			//немаловероятно что ждём ответ
-			sMessage = null;
-			mConsumer = session.createConsumer(destination);
-			while (sMessage==null) {
-				sMessage = (StreamMessage) mConsumer.receive();
+		}catch(Exception e){
+			System.out.println("Sending XML failed.(O_o )");
+			e.printStackTrace();
+		}finally{
+			if(cFactory)cFactory.close();
+			if(connection)connection.close();
+			if(session)session.close();
+			if(destination)destination.close();
+			if(mProducer)mProducer.close();
+			if(sMessage)sMessage.close();
+		}
+		return;
+	}
+
+	public static Document recieveXML(String sAddr){
+		ConnectionFactory cFactory;
+		Connection connection;
+		Session session;
+		Destination destination;
+		MessageConsumer mConsumer;
+		StreamMessage sMessage;
+		Document document;
+		try{
+			cFactory=ConnectionFactory.newInstance();
+			connection=cFactory.createConnection();
+			session=connection.createSession(false,Session.AUTO_ACKNOWLEDGE);
+			sMessage=session.createStreamMessage();
+			destination=session.createTopic(sAddr);
+			mConsumer=session.createConsumer(destination);
+			while(sMessage==null){
+				sMessage=(StreamMessage)mConsumer.receive();
 			}
-			//выдираем хмл и пишем
-			document = (Document) sMessage.readObject();
-			source=new DOMSource(document);
-			result=new StreamResult(new File("data/dbg2.xml"));
-			transformer.transform(source, result);
+			document=(Document)sMessage.readObject();
+		}catch(Exception e){
+			System.out.println("Recieving XML failed.(O_o )");
+			e.printStackTrace();
+		}finally{
+			if(cFactory)cFactory.close();
+			if(connection)connection.close();
+			if(session)session.close();
+			if(destination)destination.close();
+			if(mProducer)mProducer.close();
+			if(sMessage)sMessage.close();
+		}
+		return document;
+	}
+
+	public static void main(String[] args){
+		String sAddr="nowhere", iFile="data/dbg.xml", oFile="data/dbg2.xml";
+		Document document;
+		try{
+			document=readXML(iFile);
+			document=fillXML(document);
+			sendXML(document,sAddr);
+			document=recieveXML(sAddr);
+			writeXML(document,oFile);
 		}catch(Exception e){
 			System.out.println("Something goes wrong.(O_o )");
 			e.printStackTrace();
-		}finally{
-			//todo закрывашки
-		}
+		}finally{}
 		return;
 	}
 }
