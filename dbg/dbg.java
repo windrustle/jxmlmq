@@ -1,6 +1,5 @@
 //jxmlmq by Hellflamer/mgm
-//todo причесать, разбить на процедуры..
-//links
+
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.dom.DOMSource;
@@ -24,7 +23,7 @@ public class dbg{
 	public static Document readXML(String iFile){
 		DocumentBuilderFactory factory;
 		DocumentBuilder builder;
-		Document document;
+		Document document=null;
 		try{
 			factory=DocumentBuilderFactory.newInstance();
 			builder=factory.newDocumentBuilder();
@@ -32,10 +31,7 @@ public class dbg{
 		}catch(Exception e){
 			System.out.println("Reading XML failed.(O_o )");
 			e.printStackTrace();
-		}finally{
-			if(factory)factory.close();
-			if(builder)builder.close();
-		}
+		}finally{}
 		return document;
 	}
 
@@ -53,19 +49,12 @@ public class dbg{
 		}catch(Exception e){
 			System.out.println("Writing XML failed.(O_o )");
 			e.printStackTrace();
-		}finally{
-			if(tFactory)tFactory.close();
-			if(transformer)transformer.close();
-			if(source)source.close();
-			if(result)result.close();
-			if(document)document.close();
-		}
+		}finally{}
 		return;
 	}
 
 	public static Document fillXML(Document document){
 		//todo: fill from serialized object
-		Document document;
 		Node node;
 		Element element;
 		try{
@@ -86,22 +75,19 @@ public class dbg{
 		}catch(Exception e){
 			System.out.println("Filling XML failed.(O_o )");
 			e.printStackTrace();
-		}finally{
-			if(node)node.close();
-			if(element)element.close();
-		}
+		}finally{}
 		return document;
 	}
 
-	public static void sendXML(Document document,String sAddr){
+	public static void sendXML(Document document,String sAddr)throws Exception{
 		ConnectionFactory cFactory;
-		Connection connection;
-		Session session;
+		Connection connection=null;
+		Session session=null;
 		Destination destination;
-		MessageProducer mProducer;
+		MessageProducer mProducer=null;
 		StreamMessage sMessage;
 		try{
-			cFactory=ConnectionFactory.newInstance();
+			cFactory=new com.sun.messaging.ConnectionFactory();
 			connection=cFactory.createConnection();
 			session=connection.createSession(false,Session.AUTO_ACKNOWLEDGE);
 			sMessage=session.createStreamMessage();
@@ -114,26 +100,23 @@ public class dbg{
 			System.out.println("Sending XML failed.(O_o )");
 			e.printStackTrace();
 		}finally{
-			if(cFactory)cFactory.close();
-			if(connection)connection.close();
-			if(session)session.close();
-			if(destination)destination.close();
-			if(mProducer)mProducer.close();
-			if(sMessage)sMessage.close();
+			if(connection!=null)connection.close();
+			if(session!=null)session.close();
+			if(mProducer!=null)mProducer.close();
 		}
 		return;
 	}
 
-	public static Document recieveXML(String sAddr){
+	public static Document recieveXML(String sAddr) throws Exception{
 		ConnectionFactory cFactory;
-		Connection connection;
-		Session session;
+		Connection connection=null;
+		Session session=null;
 		Destination destination;
-		MessageConsumer mConsumer;
+		MessageConsumer mConsumer=null;
 		StreamMessage sMessage;
-		Document document;
+		Document document=null;
 		try{
-			cFactory=ConnectionFactory.newInstance();
+			cFactory=new com.sun.messaging.ConnectionFactory();
 			connection=cFactory.createConnection();
 			session=connection.createSession(false,Session.AUTO_ACKNOWLEDGE);
 			sMessage=session.createStreamMessage();
@@ -147,12 +130,9 @@ public class dbg{
 			System.out.println("Recieving XML failed.(O_o )");
 			e.printStackTrace();
 		}finally{
-			if(cFactory)cFactory.close();
-			if(connection)connection.close();
-			if(session)session.close();
-			if(destination)destination.close();
-			if(mProducer)mProducer.close();
-			if(sMessage)sMessage.close();
+			if(connection!=null)connection.close();
+			if(session!=null)session.close();
+			if(mConsumer!=null)mConsumer.close();
 		}
 		return document;
 	}

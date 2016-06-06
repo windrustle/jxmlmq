@@ -1,4 +1,4 @@
-# Java xml
-a simple tool to process an xml
+# JXMLMQ
 
-!!! [WIP} dont use xml.java or makefile.bat use dbg/dbg.java or dbg/run.bat instead !!!
+[WIP} src/xml.java (CLI/CUI edition).
+Use makefile.bat

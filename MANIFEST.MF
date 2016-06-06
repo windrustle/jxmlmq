@@ -1,5 +1,5 @@
 Manifest-Version: 1.0
 Created-By: HellFlameR/MgM
-Main-Class: xml
+Main-Class: mgm/hellflamer/xml/xml
 Name: xml
-Version: 1.01.018
+Version: 1.02.012
