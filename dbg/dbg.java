@@ -20,6 +20,7 @@ import javax.jms.StreamMessage;
 import java.io.File;
 
 public class dbg{
+	
 	public static void main(String[] args){
 		//открывашки
 		String dest;
@@ -57,6 +58,7 @@ public class dbg{
 			//берём шаблон
 			document=builder.parse(new File("data/dbg.xml"));
 			//заполняем
+			//todo сделать заполнение из структуры
 			node=document.getElementsByTagName("Title").item(0);
 			node.setTextContent("Hi there!");
 			element=(Element)document.getElementsByTagName("Body").item(0);
