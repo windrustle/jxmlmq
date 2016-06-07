@@ -1,5 +1,14 @@
 //jxmlmq by Hellflamer/mgm
 
+import com.sun.messaging.ConnectionFactory;
+import com.sun.messaging.ConnectionConfiguration;
+import javax.jms.Connection;
+import javax.jms.Session;
+import javax.jms.Destination;
+import javax.jms.MessageProducer;
+import javax.jms.MessageConsumer;
+import javax.jms.StreamMessage;
+import javax.jms.TextMessage;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.dom.DOMSource;
@@ -9,13 +18,6 @@ import javax.xml.parsers.DocumentBuilder;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.Element;
-import javax.jms.ConnectionFactory;
-import javax.jms.Connection;
-import javax.jms.Session;
-import javax.jms.Destination;
-import javax.jms.MessageProducer;
-import javax.jms.MessageConsumer;
-import javax.jms.StreamMessage;
 import java.io.File;
 
 public class dbg{
@@ -29,7 +31,7 @@ public class dbg{
 			builder=factory.newDocumentBuilder();
 			document=builder.parse(new File(iFile));
 		}catch(Exception e){
-			System.out.println("Reading XML failed.(O_o )");
+			System.out.println("Reading XML failed.(o_O )");
 			e.printStackTrace();
 		}finally{}
 		return document;
@@ -47,7 +49,7 @@ public class dbg{
 			result=new StreamResult(new File(oFile));
 			transformer.transform(source, result);
 		}catch(Exception e){
-			System.out.println("Writing XML failed.(O_o )");
+			System.out.println("Writing XML failed.(o_O )");
 			e.printStackTrace();
 		}finally{}
 		return;
@@ -73,7 +75,7 @@ public class dbg{
 			element.setAttribute("on","true");
 			node.setTextContent("Cya, pals!");
 		}catch(Exception e){
-			System.out.println("Filling XML failed.(O_o )");
+			System.out.println("Filling XML failed.(o_O )");
 			e.printStackTrace();
 		}finally{}
 		return document;
@@ -87,17 +89,18 @@ public class dbg{
 		MessageProducer mProducer=null;
 		StreamMessage sMessage;
 		try{
-			cFactory=new com.sun.messaging.ConnectionFactory();
+			cFactory=new ConnectionFactory();
+			cFactory.setProperty(ConnectionConfiguration.imqAddressList,"mq://127.0.0.1:7676");
 			connection=cFactory.createConnection();
 			session=connection.createSession(false,Session.AUTO_ACKNOWLEDGE);
 			sMessage=session.createStreamMessage();
 			destination=session.createTopic(sAddr);
 			mProducer=session.createProducer(destination);
+			sMessage.writeObject("an object");
 			connection.start();
-			sMessage.writeObject(document);
 			mProducer.send(sMessage);
 		}catch(Exception e){
-			System.out.println("Sending XML failed.(O_o )");
+			System.out.println("Sending XML failed.(o_O )");
 			e.printStackTrace();
 		}finally{
 			if(connection!=null)connection.close();
@@ -107,7 +110,7 @@ public class dbg{
 		return;
 	}
 
-	public static Document recieveXML(String sAddr) throws Exception{
+	public static Document receiveXML(String sAddr) throws Exception{
 		ConnectionFactory cFactory;
 		Connection connection=null;
 		Session session=null;
@@ -116,18 +119,22 @@ public class dbg{
 		StreamMessage sMessage;
 		Document document=null;
 		try{
-			cFactory=new com.sun.messaging.ConnectionFactory();
+			cFactory=new ConnectionFactory();
+			cFactory.setProperty(ConnectionConfiguration.imqAddressList,"mq://127.0.0.1:7676");
 			connection=cFactory.createConnection();
 			session=connection.createSession(false,Session.AUTO_ACKNOWLEDGE);
 			sMessage=session.createStreamMessage();
 			destination=session.createTopic(sAddr);
 			mConsumer=session.createConsumer(destination);
-			while(sMessage==null){
-				sMessage=(StreamMessage)mConsumer.receive();
+			connection.start();
+			sMessage=(StreamMessage)mConsumer.receive(1000*10);
+			if(sMessage!=null){
+				document=(Document)sMessage.readObject();
+			}else{
+				System.out.println("Nothing to receive.(o_O )");
 			}
-			document=(Document)sMessage.readObject();
 		}catch(Exception e){
-			System.out.println("Recieving XML failed.(O_o )");
+			System.out.println("Receiving XML failed.(o_O )");
 			e.printStackTrace();
 		}finally{
 			if(connection!=null)connection.close();
@@ -138,16 +145,16 @@ public class dbg{
 	}
 
 	public static void main(String[] args){
-		String sAddr="nowhere", iFile="data/dbg.xml", oFile="data/dbg2.xml";
+		String sAddr="local", iFile="../data/dbg.xml", oFile="../data/dbg2.xml";
 		Document document;
 		try{
 			document=readXML(iFile);
 			document=fillXML(document);
 			sendXML(document,sAddr);
-			document=recieveXML(sAddr);
+			document=receiveXML(sAddr);
 			writeXML(document,oFile);
 		}catch(Exception e){
-			System.out.println("Something goes wrong.(O_o )");
+			System.out.println("Something goes wrong.(o_O )");
 			e.printStackTrace();
 		}finally{}
 		return;
