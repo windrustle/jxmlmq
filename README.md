@@ -1,4 +1,4 @@
-#[WIP} JXMLMQ
+#[WIP] JXMLMQ
 
 Don't use makefile! Use compile.bat instead.
 
