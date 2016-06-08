@@ -1,5 +1,3 @@
-//jxmlmq by Hellflamer/mgm
-
 import com.sun.messaging.ConnectionFactory;
 import com.sun.messaging.ConnectionConfiguration;
 import javax.jms.Connection;
@@ -8,7 +6,6 @@ import javax.jms.Destination;
 import javax.jms.MessageProducer;
 import javax.jms.MessageConsumer;
 import javax.jms.StreamMessage;
-import javax.jms.TextMessage;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.dom.DOMSource;
@@ -18,48 +15,117 @@ import javax.xml.parsers.DocumentBuilder;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.Element;
-import java.io.File;
+import java.io.*;
+import java.util.Scanner;
 
 public class dbg{
 
-	public static Document readXML(String iFile){
+	public static void main(String[] args)throws Exception{
+//open
+		Scanner inStr;
+		String inFileName=".";
+		String outFileName="";
 		DocumentBuilderFactory factory;
 		DocumentBuilder builder;
 		Document document=null;
-		try{
-			factory=DocumentBuilderFactory.newInstance();
-			builder=factory.newDocumentBuilder();
-			document=builder.parse(new File(iFile));
-		}catch(Exception e){
-			System.out.println("Reading XML failed.(o_O )");
-			e.printStackTrace();
-		}finally{}
-		return document;
-	}
-
-	public static void writeXML(Document document,String oFile){
+		Node node;
+		Element element;
 		TransformerFactory tFactory;
 		Transformer transformer;
 		DOMSource source;
 		StreamResult result;
+		InputStream iStream;
+		ByteArrayInputStream bais;
+		ByteArrayOutputStream baos;
+		byte[] array;
+		ConnectionFactory cFactory;
+		Connection connection=null;
+		Session session=null;
+		Destination destination;
+		MessageProducer mProducer=null;
+		MessageConsumer mConsumer=null;
+		StreamMessage sMessage=null;
 		try{
+//init
+			inStr=new Scanner(System.in);
+			factory=DocumentBuilderFactory.newInstance();
+			builder=factory.newDocumentBuilder();
 			tFactory=TransformerFactory.newInstance();
 			transformer=tFactory.newTransformer();
-			source=new DOMSource(document);
-			result=new StreamResult(new File(oFile));
-			transformer.transform(source, result);
-		}catch(Exception e){
-			System.out.println("Writing XML failed.(o_O )");
-			e.printStackTrace();
-		}finally{}
-		return;
-	}
-
-	public static Document fillXML(Document document){
-		//todo: fill from serialized object
-		Node node;
-		Element element;
-		try{
+			cFactory=new ConnectionFactory();
+			cFactory.setProperty(ConnectionConfiguration.imqAddressList,"mq://127.0.0.1:7676");
+			connection=cFactory.createConnection();
+			session=connection.createSession(false,Session.AUTO_ACKNOWLEDGE);
+			destination=session.createTopic("local");
+			mProducer=session.createProducer(destination);
+			mConsumer=session.createConsumer(destination);
+			sMessage=session.createStreamMessage();
+			connection.start();
+//parse args
+			for(String arg:args){
+				try{
+					switch(arg.substring(0,2)){
+						case "-h":
+							System.out.println("Usage:\n-h\t this help;\n-i\tinput file or dir, if empty, used progdir by default;\n-o\toutput file or dir, if empty, used in file name\n");
+							return;
+						case "-i":
+							inFileName=arg.substring(3);
+							break;
+						case "-o":
+							outFileName=arg.substring(3);
+							break;
+					}
+				}catch(Exception e){}
+			}
+//select input file
+			System.out.println("\nUse -h for more info");
+			int i,j;
+			String s;
+			String[] fileListName;
+			File inFile=new File(inFileName);
+			if(!inFile.exists())inFile=new File(".");
+			while(true){
+				inFileName=inFile.getCanonicalPath()+'\\';
+				fileListName=inFile.list();
+				i=0;
+				System.out.println("\n  0\t..");
+				for(String st:fileListName){
+					System.out.println("  "+(++i)+"\t"+st);
+				}
+				System.out.println("\nSelect (0"+((i==0)?"":"-"+(i))+"):");
+				while(true){
+					try{
+						s=inStr.nextLine();
+						j=Integer.parseInt(s);
+						if(j>=0&&j<=i){break;}
+					}catch(Exception e){}
+						System.out.println("Incorrect input, try again");
+				}
+				inFileName+=(j==0)?"..":fileListName[j-1];
+				inFile=new File(inFileName);
+				System.out.println("\nSelected: '"+inFile.getName()+"'");
+				if(inFile.isFile()){
+					if(inFile.getName().endsWith("xml")){break;}
+					inFile=new File(inFile.getParent());
+					System.out.println(inFileName.substring(inFileName.length()-3)=="xml");
+				}
+			}
+//select output file
+			File outFile=new File(outFileName);
+			while(true){
+				try{
+					outFile.createNewFile();
+					System.out.println("Writing file: '"+outFile.getName()+"'.");
+					break;
+				}catch(Exception e){
+					System.out.println("Bad destination: '"+outFileName+"', set default.");
+					outFileName=inFile.getCanonicalPath();
+					outFile=new File(outFileName.substring(0,outFileName.length()-4)+".new.xml");
+				}
+			}
+//read
+			document=builder.parse(inFile);
+//fill
 			node=document.getElementsByTagName("Title").item(0);
 			node.setTextContent("Hi there!");
 			element=(Element)document.getElementsByTagName("Body").item(0);
@@ -74,89 +140,36 @@ public class dbg{
 			element=(Element)node;
 			element.setAttribute("on","true");
 			node.setTextContent("Cya, pals!");
-		}catch(Exception e){
-			System.out.println("Filling XML failed.(o_O )");
-			e.printStackTrace();
-		}finally{}
-		return document;
-	}
-
-	public static void sendXML(Document document,String sAddr)throws Exception{
-		ConnectionFactory cFactory;
-		Connection connection=null;
-		Session session=null;
-		Destination destination;
-		MessageProducer mProducer=null;
-		StreamMessage sMessage;
-		try{
-			cFactory=new ConnectionFactory();
-			cFactory.setProperty(ConnectionConfiguration.imqAddressList,"mq://127.0.0.1:7676");
-			connection=cFactory.createConnection();
-			session=connection.createSession(false,Session.AUTO_ACKNOWLEDGE);
-			sMessage=session.createStreamMessage();
-			destination=session.createTopic(sAddr);
-			mProducer=session.createProducer(destination);
-			sMessage.writeObject("an object");
-			connection.start();
+//convert
+			source=new DOMSource(document);
+			baos=new ByteArrayOutputStream();
+			result=new StreamResult(baos);
+			transformer.transform(source,result);
+			array=baos.toByteArray();
+//send
+			sMessage.writeObject(array);
 			mProducer.send(sMessage);
-		}catch(Exception e){
-			System.out.println("Sending XML failed.(o_O )");
-			e.printStackTrace();
-		}finally{
-			if(connection!=null)connection.close();
-			if(session!=null)session.close();
-			if(mProducer!=null)mProducer.close();
-		}
-		return;
-	}
-
-	public static Document receiveXML(String sAddr) throws Exception{
-		ConnectionFactory cFactory;
-		Connection connection=null;
-		Session session=null;
-		Destination destination;
-		MessageConsumer mConsumer=null;
-		StreamMessage sMessage;
-		Document document=null;
-		try{
-			cFactory=new ConnectionFactory();
-			cFactory.setProperty(ConnectionConfiguration.imqAddressList,"mq://127.0.0.1:7676");
-			connection=cFactory.createConnection();
-			session=connection.createSession(false,Session.AUTO_ACKNOWLEDGE);
-			sMessage=session.createStreamMessage();
-			destination=session.createTopic(sAddr);
-			mConsumer=session.createConsumer(destination);
-			connection.start();
-			sMessage=(StreamMessage)mConsumer.receive(1000*10);
-			if(sMessage!=null){
-				document=(Document)sMessage.readObject();
-			}else{
-				System.out.println("Nothing to receive.(o_O )");
+//receive
+			while(!(sMessage instanceof StreamMessage)){
+				sMessage=(StreamMessage)mConsumer.receive();
 			}
+			array=(byte[])sMessage.readObject();
+			bais=new ByteArrayInputStream(array);
+			iStream=(InputStream)bais;
+			document=builder.parse(iStream);
+			document.getDocumentElement().normalize();
+//write
+			source=new DOMSource(document);
+			result=new StreamResult(outFile);
+			transformer.transform(source, result);
 		}catch(Exception e){
-			System.out.println("Receiving XML failed.(o_O )");
-			e.printStackTrace();
+			System.out.println("Something goes wrong.(O_o )");
 		}finally{
 			if(connection!=null)connection.close();
 			if(session!=null)session.close();
 			if(mConsumer!=null)mConsumer.close();
+			if(mProducer!=null)mProducer.close();
 		}
-		return document;
-	}
-
-	public static void main(String[] args){
-		String sAddr="local", iFile="../data/dbg.xml", oFile="../data/dbg2.xml";
-		Document document;
-		try{
-			document=readXML(iFile);
-			document=fillXML(document);
-			sendXML(document,sAddr);
-			document=receiveXML(sAddr);
-			writeXML(document,oFile);
-		}catch(Exception e){
-			System.out.println("Something goes wrong.(o_O )");
-			e.printStackTrace();
-		}finally{}
 		return;
 	}
-}
+} 

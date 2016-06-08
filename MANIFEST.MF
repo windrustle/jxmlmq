@@ -1,6 +1,6 @@
 Manifest-Version: 1.0
 Created-By: HellFlameR/MgM
 Main-Class: xml
-Class-Path: lib/imq.jar;lib/jms.jar
+Class-Path: lib/*
 Name: xml
-Version: 1.03.005
+Version: 1.04.025

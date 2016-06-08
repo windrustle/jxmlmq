@@ -15,28 +15,10 @@ import javax.xml.parsers.DocumentBuilder;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.Element;
-import java.io.File;
+import java.io.*;
 import java.util.Scanner;
 
 public class xml{
-
-	private static int inCon (int min, int max){
-		int i=0;
-		String s="";
-		boolean b=true;
-		Scanner inStr=new Scanner(System.in);
-		while(b){
-			try{
-				s=inStr.nextLine();
-				i=Integer.parseInt(s);
-			}catch(Exception e){i=-1;}
-			if(i>=min&&i<=max){
-				b=false;
-			}
-			else System.out.println("Incorrect input, try again");
-		}
-		return i;
-	}
 
 	public static Document readXML(File iFile){
 		DocumentBuilderFactory factory;
@@ -51,24 +33,6 @@ public class xml{
 			e.printStackTrace();
 		}finally{}
 		return document;
-	}
-
-	public static void writeXML(Document document,File oFile){
-		TransformerFactory tFactory;
-		Transformer transformer;
-		DOMSource source;
-		StreamResult result;
-		try{
-			tFactory=TransformerFactory.newInstance();
-			transformer=tFactory.newTransformer();
-			source=new DOMSource(document);
-			result=new StreamResult(oFile);
-			transformer.transform(source, result);
-		}catch(Exception e){
-			System.out.println("Writing XML failed.(o_O )");
-			e.printStackTrace();
-		}finally{}
-		return;
 	}
 
 	public static Document fillXML(Document document){
@@ -97,11 +61,51 @@ public class xml{
 		return document;
 	}
 
-	public static void sendXML(Document document,String sAddr)throws Exception{
+	public static byte[] byteXML(Document document){
+		TransformerFactory tFactory;
+		Transformer transformer;
+		DOMSource source;
+		StreamResult result;
+		ByteArrayOutputStream baos;
+		byte[] array=null;
+		try{
+			tFactory=TransformerFactory.newInstance();
+			transformer=tFactory.newTransformer();
+			source=new DOMSource(document);
+			baos=new ByteArrayOutputStream();
+			result=new StreamResult(baos);
+			transformer.transform(source,result);
+			array=baos.toByteArray();
+		}catch(Exception e){
+			System.out.println("Converting XML failed.(o_O )");
+			e.printStackTrace();
+		}finally{}
+		return array;
+	}
+
+	public static void writeXML(Document document,File oFile){
+		TransformerFactory tFactory;
+		Transformer transformer;
+		DOMSource source;
+		StreamResult result;
+		try{
+			tFactory=TransformerFactory.newInstance();
+			transformer=tFactory.newTransformer();
+			source=new DOMSource(document);
+			result=new StreamResult(oFile);
+			transformer.transform(source, result);
+		}catch(Exception e){
+			System.out.println("Writing XML failed.(o_O )");
+			e.printStackTrace();
+		}finally{}
+		return;
+	}
+
+	public static Destination sendXML(byte[] array)throws Exception{
 		ConnectionFactory cFactory;
 		Connection connection=null;
 		Session session=null;
-		Destination destination;
+		Destination destination=null;
 		MessageProducer mProducer=null;
 		StreamMessage sMessage;
 		try{
@@ -110,9 +114,10 @@ public class xml{
 			connection=cFactory.createConnection();
 			session=connection.createSession(false,Session.AUTO_ACKNOWLEDGE);
 			sMessage=session.createStreamMessage();
-			destination=session.createTopic(sAddr);
+			destination=session.createTopic("local");
 			mProducer=session.createProducer(destination);
-			sMessage.writeObject("an object");
+			sMessage.writeObject(array);
+			sMessage.reset();
 			connection.start();
 			mProducer.send(sMessage);
 		}catch(Exception e){
@@ -123,32 +128,28 @@ public class xml{
 			if(session!=null)session.close();
 			if(mProducer!=null)mProducer.close();
 		}
-		return;
+		return destination;
 	}
 
-	public static Document receiveXML(String sAddr) throws Exception{
+	public static byte[] receiveXML(Destination destination)throws Exception{
 		ConnectionFactory cFactory;
 		Connection connection=null;
 		Session session=null;
-		Destination destination;
 		MessageConsumer mConsumer=null;
-		StreamMessage sMessage;
+		StreamMessage sMessage=null;
 		Document document=null;
+		byte[] array=null;
 		try{
 			cFactory=new ConnectionFactory();
 			cFactory.setProperty(ConnectionConfiguration.imqAddressList,"mq://127.0.0.1:7676");
 			connection=cFactory.createConnection();
 			session=connection.createSession(false,Session.AUTO_ACKNOWLEDGE);
-			sMessage=session.createStreamMessage();
-			destination=session.createTopic(sAddr);
 			mConsumer=session.createConsumer(destination);
 			connection.start();
-			sMessage=(StreamMessage)mConsumer.receive(1000*10);
-			if(sMessage!=null){
-				document=(Document)sMessage.readObject();
-			}else{
-				System.out.println("Nothing to receive.(o_O )");
+			while(!(sMessage instanceof StreamMessage)){
+				sMessage=(StreamMessage)mConsumer.receive();
 			}
+			array=(byte[])sMessage.readObject();
 		}catch(Exception e){
 			System.out.println("Receiving XML failed.(o_O )");
 			e.printStackTrace();
@@ -157,21 +158,43 @@ public class xml{
 			if(session!=null)session.close();
 			if(mConsumer!=null)mConsumer.close();
 		}
+		return array;
+	}
+
+	public static Document unbyteXML(byte[] array){
+		DocumentBuilderFactory factory;
+		DocumentBuilder builder;
+		InputStream iStream;
+		Document document=null;
+		ByteArrayInputStream bais;
+		try{
+			factory=DocumentBuilderFactory.newInstance();
+			builder=factory.newDocumentBuilder();
+			bais=new ByteArrayInputStream(array);
+			iStream=(InputStream)bais;
+			document=builder.parse(iStream);
+			document.getDocumentElement().normalize();
+		}catch(Exception e){
+			System.out.println("Converting XML failed.(o_O )");
+			e.printStackTrace();
+		}finally{}
 		return document;
 	}
 
-	public static void main(String[] args) throws Exception{
-		Document document;
+	public static void main(String[] args)throws Exception{
+		byte[] array;
+		Scanner inStr;
 		String inFileName=".";
-		String outFileName=".";
-		String sAddr=null;
+		String outFileName="";
+		Document document=null;
+		Destination destination;
 		try{
-			int i;
+			inStr=new Scanner(System.in);
 			for(String arg:args){
 				try{
 					switch(arg.substring(0,2)){
 						case "-h":
-							System.out.println("Usage:\n\tSplitter [-h] [-i:input file or dir] [-o:output file or dir] [-n:number of parts]");
+							System.out.println("Usage:\n-h\t this help;\n-i\tinput file or dir, if empty, used progdir by default;\n-o\toutput file or dir, if empty, used in file name\n");
 							return;
 						case "-i":
 							inFileName=arg.substring(3);
@@ -179,60 +202,62 @@ public class xml{
 						case "-o":
 							outFileName=arg.substring(3);
 							break;
-						case "-a":
-							sAddr=arg.substring(3);
-							break;
-/*
-больше свитчей при необходимости
-*/
 					}
-				}catch(Exception e){e.printStackTrace();}
+				}catch(Exception e){}
 			}
 			System.out.println("\nUse -h for more info");
+			int i,j;
+			String s;
 			String[] fileListName;
 			File inFile=new File(inFileName);
 			if(!inFile.exists())inFile=new File(".");
-			while(!inFile.isFile()){
+			while(true){
 				inFileName=inFile.getCanonicalPath()+'\\';
 				fileListName=inFile.list();
-				i=1;
+				i=0;
 				System.out.println("\n  0\t..");
-				try{
-					for(String s:fileListName){
-						System.out.println("  "+(i++)+"\t"+s);
-					}
-				}catch(Exception e){e.printStackTrace();}
-				System.out.println("\nSelect (0"+((i==1)?"":"-"+(i-1))+"):");
-				i=inCon(0,i-1)-1;
-				inFileName+=(i==-1)?"..":fileListName[i];
+				for(String st:fileListName){
+					System.out.println("  "+(++i)+"\t"+st);
+				}
+				System.out.println("\nSelect (0"+((i==0)?"":"-"+(i))+"):");
+				while(true){
+					try{
+						s=inStr.nextLine();
+						j=Integer.parseInt(s);
+						if(j>=0&&j<=i){break;}
+					}catch(Exception e){}
+						System.out.println("Incorrect input, try again");
+				}
+				inFileName+=(j==0)?"..":fileListName[j-1];
 				inFile=new File(inFileName);
 				System.out.println("\nSelected: '"+inFile.getName()+"'");
+				if(inFile.isFile()){
+					if(inFile.getName().endsWith("xml")){break;}
+					inFile=new File(inFile.getParent());
+					System.out.println(inFileName.substring(inFileName.length()-3)=="xml");
+				}
 			}
-			i=0;
+			File outFile=new File(outFileName);
+			while(true){
+				try{
+					outFile.createNewFile();
+					System.out.println("Writing file: '"+outFile.getName()+"'.");
+					break;
+				}catch(Exception e){
+					System.out.println("Bad destination: '"+outFileName+"', set default.");
+					outFileName=inFile.getCanonicalPath();
+					outFile=new File(outFileName.substring(0,outFileName.length()-4)+".new.xml");
+				}
+			}
+//writeXML(unbyteXML(recieveXML(sendXML(byteXML(fillXML(readXML(inFile)))))),outFile);
 			document=readXML(inFile);
 			document=fillXML(document);
-			if(sAddr==null)sAddr="nowhere";
-			sendXML(document,sAddr);
-			File outFile=new File(outFileName);
-			if(!outFile.exists()){
-				outFileName=inFile.getCanonicalPath();
-				outFile=new File(outFileName);
-			}
-			if(!outFile.isFile())outFileName=outFile.getCanonicalPath()+'\\'+inFile.getName();
-			try{
-				outFile=new File(outFileName);
-				outFile.createNewFile();
-			}catch(Exception e){
-				System.out.println("Bad destination: '"+outFileName+"', set default.");
-				outFileName=inFile.getCanonicalPath();
-				outFile=new File(outFileName);
-				outFile.createNewFile();
-			}
-			document=receiveXML(sAddr);
+			destination=sendXML(byteXML(document));
+			array=receiveXML(destination);
+			document=unbyteXML(array);
 			writeXML(document,outFile);
 		}catch(Exception e){
 			System.out.println("Something goes wrong.(O_o )");
-			e.printStackTrace();
 		}finally{}
 		return;
 	}
